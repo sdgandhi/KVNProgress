@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "KVNProgress"
-  s.version      = "2.1.3"
+  s.version      = "3.1.3"
   s.summary      = "A full screen progress view for iOS 7"
   
   s.homepage     = "https://github.com/kevin-hirsch/KVNProgress"
@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
   
   s.platform     = :ios, '7.0'
   s.source = { 
-    :git => "https://github.com/kevin-hirsch/KVNProgress.git", 
+    :git => "https://github.com/sdgandhi/KVNProgress.git", 
     :tag => s.version.to_s
   }
 

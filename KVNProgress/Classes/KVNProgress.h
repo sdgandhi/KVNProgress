@@ -25,9 +25,11 @@ extern NSString * const KVNProgressViewParameterStatus;
 extern NSString * const KVNProgressViewParameterSuperview;
 /** @see showWithParameters: */
 extern NSString * const KVNProgressViewParameterTapBlock;
+/** @see showWithParameters: */
+extern NSString * const KVNProgressViewParameterShowDelay;
 
 /** The minimum time (in seconds) the hud will be displayed. No matter if <code>dismiss</code> is called. */
-static NSTimeInterval const KVNMinimumDisplayTime = 0.3;
+static NSTimeInterval const KVNMinimumDisplayTime = 0.0;
 /** The minimum time (in seconds) the success will be displayed. */
 static NSTimeInterval const KVNMinimumSuccessDisplayTime = 2.0;
 /** The minimum time (in seconds) the error will be displayed. */
@@ -160,6 +162,11 @@ static NSTimeInterval const KVNMinimumErrorDisplayTime = 1.3;
  @see dismissWithCompletion:
  */
 + (void)dismiss NS_AVAILABLE_IOS(7_0);
+
+/**
+ Force dismiss the progress view. No animation. Progress view is removed from superview immediately.
+ */
++ (void)dismissForced NS_AVAILABLE_IOS(7_0);
 
 /**
  Dismiss progress view with a fade animation and call a completion handler when the dismiss process is finished. Does nothing if the progress view is not on screen.

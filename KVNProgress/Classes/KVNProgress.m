@@ -28,6 +28,7 @@ NSString * const KVNProgressViewParameterBackgroundType = @"KVNProgressViewParam
 NSString * const KVNProgressViewParameterStatus = @"KVNProgressViewParameterStatus";
 NSString * const KVNProgressViewParameterSuperview = @"KVNProgressViewParameterSuperview";
 NSString * const KVNProgressViewParameterTapBlock = @"KVNProgressViewParameterTapBlock";
+NSString * const KVNProgressViewParameterShowDelay = @"KVNProgressViewParameterShowDelay";
 
 static CGFloat const KVNFadeAnimationDuration = 0.3f;
 static CGFloat const KVNLayoutAnimationDuration = 0.3f;
@@ -57,6 +58,7 @@ static CGFloat const KVNMotionEffectRelativeValue = 10.0f;
 @property (nonatomic, getter = isWaitingToChangeHUD) BOOL waitingToChangeHUD;
 @property (nonatomic, getter = isDismissing) BOOL dismissing;
 @property (nonatomic, copy) KVNTapBlock tapBlock;
+@property (nonatomic) CGFloat showDelay;
 
 // UI
 @property (nonatomic, weak) IBOutlet UIImageView *contentView;
@@ -221,7 +223,8 @@ static CGFloat const KVNMotionEffectRelativeValue = 10.0f;
 					 backgroundType:(KVNProgressBackgroundType)[parameters[KVNProgressViewParameterBackgroundType] unsignedIntegerValue]
 						 fullScreen:[parameters[KVNProgressViewParameterFullScreen] boolValue]
 							   view:parameters[KVNProgressViewParameterSuperview]
-                           tapBlock:parameters[KVNProgressViewParameterTapBlock]];
+                           tapBlock:parameters[KVNProgressViewParameterTapBlock]
+                          showDelay:[parameters[KVNProgressViewParameterShowDelay]?:@0 floatValue]];
 }
 
 - (void)showProgress:(CGFloat)progress
@@ -231,6 +234,7 @@ static CGFloat const KVNMotionEffectRelativeValue = 10.0f;
 		  fullScreen:(BOOL)fullScreen
 				view:(UIView *)superview
             tapBlock:(KVNTapBlock)tapBlock
+           showDelay:(CGFloat)showDelay
 {
 	__block KVNProgress *__blockSelf = self;
 	
@@ -254,7 +258,7 @@ static CGFloat const KVNMotionEffectRelativeValue = 10.0f;
 		
 		if (delay > 0) {
 			dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-				if ([__blockSelf isDismissing] || ![__blockSelf.class isVisible]) {
+				if ([__blockSelf isDismissing]) {
 					// While waiting for displaying previous HUD enough time before showing the new one,
 					// the dismiss method on this new HUD has already been called
 					// So logically, we do not display the new HUD that is already dismissed (before even being displayed)
@@ -267,13 +271,20 @@ static CGFloat const KVNMotionEffectRelativeValue = 10.0f;
                            backgroundType:backgroundType
                                fullScreen:fullScreen
                                      view:superview
-                                 tapBlock:tapBlock];
+                                 tapBlock:tapBlock
+                                showDelay:showDelay];
             });
 			
 			return;
 		}
 	}
 	
+    // If we are a regular indeterminate progress, make sure we
+    // remove any previous spinners
+    if ([self isIndeterminate]) {
+        [self.class dismissForced];
+    }
+    
 	// We're going to create a new HUD
 	self.waitingToChangeHUD = NO;
 	self.progress = progress;
@@ -309,7 +320,7 @@ static CGFloat const KVNMotionEffectRelativeValue = 10.0f;
 		// (Fix to make the animations work fine)
 		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1f * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 			[__blockSelf animateUI];
-			[__blockSelf animateAppearance];
+            [__blockSelf animateAppearanceWithDelay:showDelay];
 		});
 	}
 	
@@ -353,6 +364,20 @@ static CGFloat const KVNMotionEffectRelativeValue = 10.0f;
 + (void)dismiss
 {
 	[self dismissWithCompletion:nil];
+}
+
++ (void)dismissForced
+{
+    KVNProgress *progressView = [self sharedView];
+    [progressView removeFromSuperview];
+    progressView.style = KVNProgressStyleHidden;
+    UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, nil);
+    
+    // Tell the rootViewController to update the StatusBar appearance
+    UIViewController *rootController = [[UIApplication sharedApplication] keyWindow].rootViewController;
+    if ([rootController respondsToSelector:@selector(setNeedsStatusBarAppearanceUpdate)]) {
+        [rootController setNeedsStatusBarAppearanceUpdate];
+    }
 }
 
 + (void)dismissWithCompletion:(void (^)(void))completion
@@ -788,7 +813,8 @@ static CGFloat const KVNMotionEffectRelativeValue = 10.0f;
             backgroundType:self.backgroundType
                 fullScreen:self.fullScreen
                       view:self.superview
-                  tapBlock:nil];
+                  tapBlock:nil
+                 showDelay:0];
         
 		return;
 	}
@@ -847,6 +873,11 @@ static CGFloat const KVNMotionEffectRelativeValue = 10.0f;
 
 - (void)animateAppearance
 {
+    [self animateAppearanceWithDelay:0];
+}
+
+- (void)animateAppearanceWithDelay:(CGFloat)showDelay
+{
 	[UIView animateWithDuration:0.0f
 						  delay:0.0f
 						options:UIViewAnimationOptionBeginFromCurrentState
@@ -859,7 +890,7 @@ static CGFloat const KVNMotionEffectRelativeValue = 10.0f;
 	self.showActionTrigerredDate = [NSDate date];
 	
 	[UIView animateWithDuration:KVNFadeAnimationDuration
-						  delay:0.0f
+						  delay:showDelay
 						options:UIViewAnimationOptionCurveEaseOut
 					 animations:^{
 						 self.alpha = 1.0f;
